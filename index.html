@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFRNT API Explorer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; }
+
+  /* Header */
+  .header { background: #1a1d27; border-bottom: 1px solid #2d3148; padding: 14px 24px; display: flex; align-items: center; gap: 16px; }
+  .header h1 { font-size: 18px; font-weight: 700; color: #fff; }
+  .header .badge { background: #6366f1; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .token-bar { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .token-bar input { background: #0f1117; border: 1px solid #2d3148; color: #e2e8f0; padding: 7px 12px; border-radius: 6px; font-size: 13px; width: 320px; font-family: monospace; }
+  .token-bar input:focus { outline: none; border-color: #6366f1; }
+  .token-status { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; flex-shrink: 0; }
+  .token-status.valid { background: #22c55e; }
+
+  /* Layout */
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar { width: 260px; background: #13151f; border-right: 1px solid #2d3148; overflow-y: auto; flex-shrink: 0; }
+  .sidebar-section { padding: 10px 0; }
+  .sidebar-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #64748b; padding: 6px 16px; }
+  .endpoint-item { padding: 9px 16px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s; display: flex; align-items: center; gap: 10px; }
+  .endpoint-item:hover { background: #1a1d27; border-left-color: #6366f1; }
+  .endpoint-item.active { background: #1e2035; border-left-color: #6366f1; }
+  .method-tag { font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; min-width: 38px; text-align: center; flex-shrink: 0; }
+  .get { background: #14532d; color: #4ade80; }
+  .post { background: #312e81; color: #a5b4fc; }
+  .put { background: #713f12; color: #fcd34d; }
+  .delete { background: #7f1d1d; color: #fca5a5; }
+  .endpoint-name { font-size: 13px; color: #cbd5e1; }
+
+  /* Main */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Request panel */
+  .request-panel { padding: 20px 24px; border-bottom: 1px solid #2d3148; }
+  .url-row { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+  .method-select { background: #1a1d27; border: 1px solid #2d3148; color: #a5b4fc; padding: 9px 12px; border-radius: 6px; font-weight: 700; font-size: 13px; }
+  .url-input { flex: 1; background: #1a1d27; border: 1px solid #2d3148; color: #e2e8f0; padding: 9px 14px; border-radius: 6px; font-size: 14px; font-family: monospace; }
+  .url-input:focus { outline: none; border-color: #6366f1; }
+  .send-btn { background: #6366f1; color: #fff; border: none; padding: 9px 22px; border-radius: 6px; font-weight: 700; font-size: 14px; cursor: pointer; transition: background 0.15s; }
+  .send-btn:hover { background: #4f46e5; }
+  .send-btn:disabled { background: #374151; color: #6b7280; cursor: not-allowed; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid #2d3148; padding: 0 24px; }
+  .tab { padding: 10px 16px; font-size: 13px; cursor: pointer; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab.active { color: #a5b4fc; border-bottom-color: #6366f1; }
+
+  /* Body/response area */
+  .panels { display: flex; flex: 1; overflow: hidden; }
+  .panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .panel + .panel { border-left: 1px solid #2d3148; }
+  .panel-header { padding: 10px 16px; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; background: #13151f; border-bottom: 1px solid #2d3148; display: flex; align-items: center; justify-content: space-between; }
+  .panel-header .status-pill { font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 99px; }
+  .status-2xx { background: #14532d; color: #4ade80; }
+  .status-4xx { background: #7f1d1d; color: #fca5a5; }
+  .status-5xx { background: #7c2d12; color: #fdba74; }
+  textarea.code { flex: 1; background: #0f1117; border: none; color: #e2e8f0; padding: 16px; font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 13px; resize: none; line-height: 1.6; }
+  textarea.code:focus { outline: none; }
+
+  /* AI panel */
+  .ai-panel { width: 340px; background: #13151f; border-left: 1px solid #2d3148; display: flex; flex-direction: column; flex-shrink: 0; }
+  .ai-header { padding: 12px 16px; border-bottom: 1px solid #2d3148; display: flex; align-items: center; gap: 8px; }
+  .ai-header span { font-size: 13px; font-weight: 700; color: #a5b4fc; }
+  .ai-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .ai-msg { padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.55; }
+  .ai-msg.assistant { background: #1e2035; color: #e2e8f0; }
+  .ai-msg.user { background: #312e81; color: #e2e8f0; align-self: flex-end; max-width: 90%; }
+  .ai-msg.system { background: #1f2937; color: #94a3b8; font-style: italic; font-size: 12px; }
+  .ai-input-row { padding: 12px; border-top: 1px solid #2d3148; display: flex; gap: 8px; }
+  .ai-input { flex: 1; background: #1a1d27; border: 1px solid #2d3148; color: #e2e8f0; padding: 8px 12px; border-radius: 6px; font-size: 13px; resize: none; font-family: inherit; }
+  .ai-input:focus { outline: none; border-color: #6366f1; }
+  .ai-send-btn { background: #6366f1; border: none; color: #fff; width: 36px; height: 36px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .ai-send-btn:hover { background: #4f46e5; }
+  .ai-send-btn:disabled { background: #374151; cursor: not-allowed; }
+  .thinking { display: flex; gap: 4px; align-items: center; padding: 8px 12px; }
+  .thinking span { width: 6px; height: 6px; background: #6366f1; border-radius: 50%; animation: bounce 1.2s infinite; }
+  .thinking span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,80%,100% { transform: scale(0.6); opacity: 0.5; } 40% { transform: scale(1); opacity: 1; } }
+
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #374151; gap: 8px; }
+  .empty-state svg { opacity: 0.3; }
+  .empty-state p { font-size: 13px; }
+
+  /* API key modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .modal { background: #1a1d27; border: 1px solid #2d3148; border-radius: 12px; padding: 28px; width: 480px; }
+  .modal h2 { font-size: 18px; margin-bottom: 8px; }
+  .modal p { font-size: 13px; color: #94a3b8; margin-bottom: 20px; line-height: 1.6; }
+  .modal input { width: 100%; background: #0f1117; border: 1px solid #2d3148; color: #e2e8f0; padding: 10px 14px; border-radius: 6px; font-size: 14px; font-family: monospace; margin-bottom: 14px; }
+  .modal input:focus { outline: none; border-color: #6366f1; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .btn-secondary { background: transparent; border: 1px solid #2d3148; color: #94a3b8; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .btn-primary { background: #6366f1; border: none; color: #fff; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>DFRNT API Explorer</h1>
+  <span class="badge">Urgent Couriers</span>
+  <div class="token-bar">
+    <div class="token-status" id="tokenStatus"></div>
+    <input type="password" id="tokenInput" placeholder="Paste your Bearer token..." oninput="onTokenChange()" />
+    <input type="text" id="baseUrlInput" value="https://api.urgent.co.nz" style="width:220px;" placeholder="Base URL" />
+  </div>
+</div>
+
+<!-- AI Key Modal -->
+<div class="modal-overlay" id="aiModal">
+  <div class="modal">
+    <h2>🤖 AI Assistant Setup</h2>
+    <p>Enter your OpenAI API key to enable the AI assistant. It will help explain errors and suggest fixes to your request payloads.<br><br>Your key is stored in your browser only and never sent to our servers.</p>
+    <input type="password" id="aiKeyInput" placeholder="sk-..." />
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="dismissModal()">Skip for now</button>
+      <button class="btn-primary" onclick="saveAiKey()">Save & Continue</button>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Rates</div>
+      <div class="endpoint-item" onclick="selectEndpoint('rates-get')">
+        <span class="method-tag post">POST</span><span class="endpoint-name">Get Rates</span>
+      </div>
+      <div class="endpoint-item" onclick="selectEndpoint('rates-scheduler')">
+        <span class="method-tag post">POST</span><span class="endpoint-name">Scheduler Rates</span>
+      </div>
+      <div class="endpoint-item" onclick="selectEndpoint('rates-rerate')">
+        <span class="method-tag post">POST</span><span class="endpoint-name">Rerate Amount</span>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Jobs</div>
+      <div class="endpoint-item" onclick="selectEndpoint('jobs-get')">
+        <span class="method-tag get">GET</span><span class="endpoint-name">Get Job</span>
+      </div>
+      <div class="endpoint-item" onclick="selectEndpoint('jobs-get-ref')">
+        <span class="method-tag get">GET</span><span class="endpoint-name">Get Job by Ref</span>
+      </div>
+      <div class="endpoint-item" onclick="selectEndpoint('jobs-create')">
+        <span class="method-tag post">POST</span><span class="endpoint-name">Create Job</span>
+      </div>
+      <div class="endpoint-item" onclick="selectEndpoint('jobs-topup')">
+        <span class="method-tag post">POST</span><span class="endpoint-name">Topup Job</span>
+      </div>
+      <div class="endpoint-item" onclick="selectEndpoint('jobs-update')">
+        <span class="method-tag put">PUT</span><span class="endpoint-name">Update Job</span>
+      </div>
+      <div class="endpoint-item" onclick="selectEndpoint('jobs-delete')">
+        <span class="method-tag delete">DEL</span><span class="endpoint-name">Delete Job</span>
+      </div>
+      <div class="endpoint-item" onclick="selectEndpoint('jobs-release')">
+        <span class="method-tag post">POST</span><span class="endpoint-name">Release OnHold Job</span>
+      </div>
+      <div class="endpoint-item" onclick="selectEndpoint('jobs-saved-create')">
+        <span class="method-tag post">POST</span><span class="endpoint-name">Create Saved Booking</span>
+      </div>
+      <div class="endpoint-item" onclick="selectEndpoint('jobs-saved-delete')">
+        <span class="method-tag delete">DEL</span><span class="endpoint-name">Delete Saved Booking</span>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Address Validation</div>
+      <div class="endpoint-item" onclick="selectEndpoint('validate-address')">
+        <span class="method-tag get">GET</span><span class="endpoint-name">Validate Address</span>
+      </div>
+      <div class="endpoint-item" onclick="selectEndpoint('validate-geo')">
+        <span class="method-tag post">POST</span><span class="endpoint-name">Validate Geo</span>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Webhooks</div>
+      <div class="endpoint-item" onclick="selectEndpoint('webhooks-list')">
+        <span class="method-tag get">GET</span><span class="endpoint-name">List Subscriptions</span>
+      </div>
+      <div class="endpoint-item" onclick="selectEndpoint('webhooks-create')">
+        <span class="method-tag post">POST</span><span class="endpoint-name">Create Subscription</span>
+      </div>
+      <div class="endpoint-item" onclick="selectEndpoint('webhooks-delete')">
+        <span class="method-tag delete">DEL</span><span class="endpoint-name">Delete Subscription</span>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Labels</div>
+      <div class="endpoint-item" onclick="selectEndpoint('labels-get')">
+        <span class="method-tag get">GET</span><span class="endpoint-name">Get Job Label</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Request bar -->
+    <div class="request-panel">
+      <div class="url-row">
+        <select class="method-select" id="methodSelect">
+          <option>POST</option><option>GET</option><option>PUT</option><option>DELETE</option>
+        </select>
+        <input class="url-input" id="urlInput" value="/api/Rates" />
+        <button class="send-btn" id="sendBtn" onclick="sendRequest()">Send ▶</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('body')">Body</div>
+      <div class="tab" onclick="switchTab('headers')">Headers</div>
+    </div>
+
+    <!-- Panels -->
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-header">Request</div>
+        <textarea class="code" id="requestBody" placeholder="Select an endpoint or paste your JSON body here..."></textarea>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          Response
+          <span class="status-pill" id="statusPill"></span>
+        </div>
+        <textarea class="code" id="responseBody" readonly placeholder="Response will appear here after sending..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Panel -->
+  <div class="ai-panel">
+    <div class="ai-header">
+      <span>🤖 AI Assistant</span>
+    </div>
+    <div class="ai-messages" id="aiMessages">
+      <div class="ai-msg system">Select an endpoint and send a request. I'll help explain errors and fix your payload.</div>
+    </div>
+    <div class="ai-input-row">
+      <textarea class="ai-input" id="aiChatInput" rows="2" placeholder="Ask me anything about this request..." onkeydown="aiKeyDown(event)"></textarea>
+      <button class="ai-send-btn" id="aiSendBtn" onclick="sendAiMessage()" title="Send">➤</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ─────────────────────────────────────────────────────────────────
+let currentEndpoint = null;
+let lastRequest = null;
+let lastResponse = null;
+let aiKey = localStorage.getItem('dfrnt_ai_key') || '';
+let conversationHistory = [];
+
+// ─── Endpoint definitions ───────────────────────────────────────────────────
+const ENDPOINTS = {
+  'rates-get': {
+    method: 'POST', path: '/api/Rates',
+    description: 'Get available services with pricing for a route.',
+    body: {
+      From: { CompanyName: "", BuildingName: "", StreetAddress: "17 Saleyards Road", Suburb: "Otahuhu", City: "Auckland", PostCode: "1062", CountryCode: "NZ", Latitude: -36.9387, Longitude: 174.8326 },
+      To: { CompanyName: "", BuildingName: "", StreetAddress: "Hospital Road", Suburb: "Whangarei", City: "Whangarei", PostCode: "0110", CountryCode: "NZ", Latitude: -35.7269, Longitude: 174.3238 },
+      Packages: [{ Name: "custom", Length: 10.0, Width: 10.0, Height: 10.0, Kg: 1.0, Type: null, PackageCode: null, Units: 1 }],
+      IsSignatureRequired: false, IsSaturdayDelivery: false, IsDangerousGoods: false,
+      DryIceWeight: 0, IsPrebook: false, DateTime: new Date().toISOString(), JobType: 1, Van: false, Bike: false, Truck: null
+    }
+  },
+  'rates-scheduler': {
+    method: 'POST', path: '/api/Rates/GetSchedulerRates',
+    description: 'Get available scheduled services with pricing.',
+    body: {
+      From: { CompanyName: "", BuildingName: "", StreetAddress: "123 Queen Street", Suburb: "Auckland Central", City: "Auckland", PostCode: "1010", CountryCode: "NZ", Latitude: -36.8485, Longitude: 174.7633 },
+      To: { CompanyName: "", BuildingName: "", StreetAddress: "456 Example Street", Suburb: "Wellington Central", City: "Wellington", PostCode: "6011", CountryCode: "NZ", Latitude: -41.2865, Longitude: 174.7762 },
+      Packages: [{ Name: "custom", Length: 20.0, Width: 15.0, Height: 10.0, Kg: 3.5, Type: null, PackageCode: null, Units: 1 }],
+      IsSignatureRequired: true, IsSaturdayDelivery: false, IsDangerousGoods: false, IsPrebook: false,
+      DateTime: new Date().toISOString()
+    }
+  },
+  'rates-rerate': {
+    method: 'POST', path: '/api/Rates/GetRerateAmount',
+    description: 'Get rerate price for a job by speed.',
+    body: {
+      SpeedId: 4, SizeId: 2,
+      From: { StreetAddress: "373 Neilson Street", SuburbId: 124, Latitude: -36.9226, Longitude: 174.8137 },
+      To: { StreetAddress: "17 Saleyards Road", SuburbId: 36, Latitude: -36.9387, Longitude: 174.8326 },
+      Packages: [{ Length: 10.0, Width: 10.0, Height: 10.0, Kg: 1, Units: 1 }],
+      weight: 6, quantity: 1, IsDangerousGoods: false, IsPrebook: false,
+      DateTime: new Date().toISOString(), Bike: false, Van: false, Truck: null,
+      ourReference: "", clientReferenceA: "", clientReferenceB: ""
+    }
+  },
+  'jobs-get': {
+    method: 'GET', path: '/api/Jobs/{id}',
+    description: 'Get job detail by Job ID.',
+    body: null,
+    pathParam: 'id'
+  },
+  'jobs-get-ref': {
+    method: 'GET', path: '/api/Jobs/{reference}/{date}',
+    description: 'Get job detail by reference and date (format: YYYY-MM-DD).',
+    body: null,
+    pathParam: 'reference+date'
+  },
+  'jobs-create': {
+    method: 'POST', path: '/api/Jobs',
+    description: 'Create a new pickup job.',
+    body: {
+      QuoteId: "", SpeedId: 1, JobType: 1,
+      Pickup: {
+        Name: "Acme Corp", ContactPerson: "Jane Smith", PhoneNumber: "09 000 0000",
+        Email: "jane@acme.co.nz", SendTrackingEmail: false,
+        From: { StreetAddress: "123 Queen Street", Suburb: "Auckland Central", City: "Auckland", PostCode: "1010", CountryCode: "NZ", Latitude: -36.8485, Longitude: 174.7633 },
+        Notes: ""
+      },
+      Delivery: {
+        Name: "Bob Jones", ContactPerson: "Bob Jones", PhoneNumber: "09 111 1111",
+        Email: "", SendTrackingEmail: false,
+        To: { StreetAddress: "456 Example Street", Suburb: "Parnell", City: "Auckland", PostCode: "1052", CountryCode: "NZ", Latitude: -36.8600, Longitude: 174.7800 },
+        Notes: ""
+      },
+      Packages: [{ Name: "custom", Length: 10.0, Width: 10.0, Height: 10.0, Kg: 1.0, Units: 1 }],
+      DateTime: new Date().toISOString(),
+      JobNotificationType: "EMAIL", JobNotificationEmail: "jane@acme.co.nz",
+      IsSignatureRequired: true, IsSaturdayDelivery: false, IsDangerousGoods: false,
+      ClientReferenceA: "", ClientReferenceB: "", ClientNotes: "", Van: false, Bike: false, Truck: null
+    }
+  },
+  'jobs-topup': {
+    method: 'POST', path: '/api/Jobs/Topup',
+    description: 'Create a one-off top-up job.',
+    body: {
+      QuoteId: "", SpeedId: 1, JobType: 1,
+      Pickup: { Name: "Acme Corp", ContactPerson: "Jane Smith", PhoneNumber: "09 000 0000", From: { StreetAddress: "123 Queen Street", Suburb: "Auckland Central", City: "Auckland", PostCode: "1010", CountryCode: "NZ" }, Notes: "" },
+      Delivery: { Name: "Bob Jones", To: { StreetAddress: "456 Example Street", Suburb: "Parnell", City: "Auckland", PostCode: "1052", CountryCode: "NZ" }, Notes: "" },
+      Packages: [{ Name: "custom", Length: 10.0, Width: 10.0, Height: 10.0, Kg: 1.0, Units: 1 }],
+      DateTime: new Date().toISOString()
+    }
+  },
+  'jobs-update': {
+    method: 'PUT', path: '/api/Jobs/{id}',
+    description: 'Update an existing job by Job ID.',
+    body: { Notes: "Updated notes", ClientNotes: "Client note update" },
+    pathParam: 'id'
+  },
+  'jobs-delete': {
+    method: 'DELETE', path: '/api/Jobs/{id}',
+    description: 'Delete a job by Job ID.',
+    body: null,
+    pathParam: 'id'
+  },
+  'jobs-release': {
+    method: 'POST', path: '/api/Jobs/Release/{id}',
+    description: 'Release an OnHold/prebook job. Returns a new Job ID for tracking.',
+    body: null,
+    pathParam: 'id'
+  },
+  'jobs-saved-create': {
+    method: 'POST', path: '/api/Jobs/SavedBooking',
+    description: 'Create a saved/recurring booking.',
+    body: {
+      FromAddress: "123 Queen Street", FromSuburb: "Auckland Central",
+      ToAddress: "456 Example Street", ToSuburb: "Parnell",
+      Speed: "60", Size: "Car", Weight: 2.0, Quantity: 1,
+      ReferenceA: "", ReferenceB: "MY-SAVED-BOOKING",
+      BookedBy: "Jane Smith", Type: "pickup",
+      JobNotificationType: "Email", JobNotificationEmail: "jane@acme.co.nz"
+    }
+  },
+  'jobs-saved-delete': {
+    method: 'DELETE', path: '/api/Jobs/SavedBooking/{referenceB}',
+    description: 'Delete a saved booking by ReferenceB.',
+    body: null,
+    pathParam: 'referenceB'
+  },
+  'validate-address': {
+    method: 'GET', path: '/api/Jobs/ValidateUTAddress/{address}',
+    description: 'Validate whether an address is in the UT area.',
+    body: null,
+    pathParam: 'address'
+  },
+  'validate-geo': {
+    method: 'POST', path: '/api/Jobs/ValidateUTAddress',
+    description: 'Validate whether a geolocation is in the UT area.',
+    body: { Latitude: -36.8485, Longitude: 174.7633 }
+  },
+  'webhooks-list': {
+    method: 'GET', path: '/api/Webhook',
+    description: 'List all webhook subscriptions.',
+    body: null
+  },
+  'webhooks-create': {
+    method: 'POST', path: '/api/Webhook',
+    description: 'Subscribe to webhook events.',
+    body: { EventType: "JobStatus", WebhookURI: "https://your-server.com/webhook/urgent" }
+  },
+  'webhooks-delete': {
+    method: 'DELETE', path: '/api/Webhook/{id}',
+    description: 'Delete a webhook subscription by ID.',
+    body: null,
+    pathParam: 'id'
+  },
+  'labels-get': {
+    method: 'GET', path: '/api/JobLabel/{id}',
+    description: 'Get a printable label for a job.',
+    body: null,
+    pathParam: 'id'
+  }
+};
+
+// ─── System prompt ──────────────────────────────────────────────────────────
+const SYSTEM_PROMPT = `You are an expert integration assistant for the DFRNT / Urgent Couriers API. 
+You help developers debug API requests, understand errors, and fix their request payloads.
+
+Key API knowledge:
+- Base URL: varies (typically api.urgent.co.nz)
+- Auth: Bearer token in Authorization header
+- NZ addresses require: StreetAddress, Suburb, City, PostCode, CountryCode:"NZ"
+- US addresses require: StreetAddress, City, State, ZipCode, CountryCode:"US" + VehicleSizeId
+- Weight field is "Kg" for NZ, "Lb" for US packages
+- JobType: 1=Pickup, 2=DeliverToUs, 3=ThirdParty
+- SpeedId comes from the Get Rates response — always call Rates first
+- QuoteId comes from the Get Rates response
+- Webhooks only support EventType: "JobStatus"
+- JobNotificationType values: WEBSITE, EMAIL, TEXT, EMAILANDTEXT
+- StorageState values: null, Ambient, Chilled, Frozen
+
+When you see an error:
+1. Identify the specific validation failure
+2. Show exactly which field(s) need to change
+3. Provide a corrected snippet of JSON
+4. Explain why the change is needed
+
+Be concise and developer-friendly. Format code with backticks.`;
+
+// ─── AI Modal ───────────────────────────────────────────────────────────────
+function dismissModal() {
+  document.getElementById('aiModal').style.display = 'none';
+}
+function saveAiKey() {
+  const key = document.getElementById('aiKeyInput').value.trim();
+  if (key) { aiKey = key; localStorage.setItem('dfrnt_ai_key', key); }
+  dismissModal();
+}
+if (aiKey) dismissModal();
+
+// ─── Token ──────────────────────────────────────────────────────────────────
+function onTokenChange() {
+  const val = document.getElementById('tokenInput').value.trim();
+  document.getElementById('tokenStatus').className = 'token-status' + (val.length > 20 ? ' valid' : '');
+}
+
+// ─── Endpoint selection ─────────────────────────────────────────────────────
+function selectEndpoint(id) {
+  currentEndpoint = id;
+  document.querySelectorAll('.endpoint-item').forEach(el => el.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  const ep = ENDPOINTS[id];
+  document.getElementById('methodSelect').value = ep.method;
+  let path = ep.path;
+  if (ep.pathParam) {
+    const param = prompt(`Enter value for path parameter: ${ep.pathParam}`);
+    if (param) {
+      ep.pathParam.split('+').forEach((p, i) => {
+        path = path.replace(`{${p}}`, param.split('/')[i] || param);
+      });
+    }
+  }
+  document.getElementById('urlInput').value = path;
+  document.getElementById('requestBody').value = ep.body ? JSON.stringify(ep.body, null, 2) : '';
+  document.getElementById('responseBody').value = '';
+  document.getElementById('statusPill').textContent = '';
+  document.getElementById('statusPill').className = 'status-pill';
+  addAiMessage('system', `📌 **${ep.method} ${ep.path}** — ${ep.description}`);
+}
+
+// ─── Send request ────────────────────────────────────────────────────────────
+async function sendRequest() {
+  const token = document.getElementById('tokenInput').value.trim();
+  const baseUrl = document.getElementById('baseUrlInput').value.trim().replace(/\/$/, '');
+  const method = document.getElementById('methodSelect').value;
+  const path = document.getElementById('urlInput').value.trim();
+  const bodyText = document.getElementById('requestBody').value.trim();
+
+  if (!token) { alert('Please enter your Bearer token first.'); return; }
+
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true; btn.textContent = 'Sending...';
+
+  const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const options = { method, headers };
+  if (['POST','PUT'].includes(method) && bodyText) {
+    try { JSON.parse(bodyText); options.body = bodyText; }
+    catch(e) { alert('Invalid JSON in request body: ' + e.message); btn.disabled = false; btn.textContent = 'Send ▶'; return; }
+  }
+
+  lastRequest = { method, path, body: bodyText };
+
+  try {
+    const res = await fetch(baseUrl + path, options);
+    const text = await res.text();
+    let pretty = text;
+    try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch {}
+    
+    lastResponse = { status: res.status, body: pretty };
+    document.getElementById('responseBody').value = pretty;
+
+    const pill = document.getElementById('statusPill');
+    pill.textContent = res.status + ' ' + res.statusText;
+    pill.className = 'status-pill ' + (res.ok ? 'status-2xx' : res.status >= 500 ? 'status-5xx' : 'status-4xx');
+
+    if (!res.ok) {
+      autoAnalyzeError(res.status, pretty, bodyText);
+    } else {
+      addAiMessage('assistant', `✅ Request successful (${res.status}). Response received.${res.status === 200 && pretty.includes('SpeedId') ? '\n\n💡 **Tip:** Copy the `SpeedId` and `QuoteId` from this response to use in your Create Job request.' : ''}`);
+    }
+  } catch(e) {
+    document.getElementById('responseBody').value = 'Network error: ' + e.message;
+    addAiMessage('assistant', `❌ **Network error:** ${e.message}\n\nCheck that the base URL is correct and the server is reachable.`);
+  }
+
+  btn.disabled = false; btn.textContent = 'Send ▶';
+}
+
+// ─── Auto-analyze errors ─────────────────────────────────────────────────────
+async function autoAnalyzeError(status, responseBody, requestBody) {
+  addAiMessage('system', `⚠️ Got ${status} — analyzing...`);
+  const prompt = `The developer got an HTTP ${status} error.\n\nRequest body:\n${requestBody}\n\nAPI Response:\n${responseBody}\n\nPlease explain what went wrong and provide the corrected JSON snippet.`;
+  await callAI(prompt, false);
+}
+
+// ─── AI chat ─────────────────────────────────────────────────────────────────
+function aiKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAiMessage(); }
+}
+
+async function sendAiMessage() {
+  const input = document.getElementById('aiChatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addAiMessage('user', text);
+
+  const context = lastRequest || lastResponse 
+    ? `\n\nCurrent request: ${lastRequest ? JSON.stringify(lastRequest) : 'none'}\nLast response: ${lastResponse ? JSON.stringify(lastResponse) : 'none'}`
+    : '';
+
+  await callAI(text + context, true);
+}
+
+async function callAI(userMessage, addUserToHistory) {
+  if (!aiKey) {
+    addAiMessage('assistant', '⚠️ No AI key configured. Click the setup prompt at page load or add your OpenAI key to enable AI assistance.');
+    return;
+  }
+
+  const thinkingEl = addThinking();
+
+  if (addUserToHistory) conversationHistory.push({ role: 'user', content: userMessage });
+
+  const messages = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...conversationHistory.slice(-10),
+    ...(addUserToHistory ? [] : [{ role: 'user', content: userMessage }])
+  ];
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${aiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'gpt-4o', messages, temperature: 0.3, max_tokens: 1000 })
+    });
+    const data = await res.json();
+    thinkingEl.remove();
+
+    if (data.error) {
+      addAiMessage('assistant', `❌ AI error: ${data.error.message}`);
+      return;
+    }
+
+    const reply = data.choices[0].message.content;
+    conversationHistory.push({ role: 'assistant', content: reply });
+    addAiMessage('assistant', reply);
+  } catch(e) {
+    thinkingEl.remove();
+    addAiMessage('assistant', `❌ Could not reach AI: ${e.message}`);
+  }
+}
+
+function addAiMessage(role, text) {
+  const container = document.getElementById('aiMessages');
+  const el = document.createElement('div');
+  el.className = `ai-msg ${role}`;
+  el.textContent = text;
+  container.appendChild(el);
+  container.scrollTop = container.scrollHeight;
+  return el;
+}
+
+function addThinking() {
+  const container = document.getElementById('aiMessages');
+  const el = document.createElement('div');
+  el.className = 'thinking';
+  el.innerHTML = '<span></span><span></span><span></span>';
+  container.appendChild(el);
+  container.scrollTop = container.scrollHeight;
+  return el;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (tab==='body'&&i===0)||(tab==='headers'&&i===1)));
+}
+</script>
+</body>
+</html>
