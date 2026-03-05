@@ -140,19 +140,7 @@
   </div>
 </div>
 
-<!-- AI Key Modal -->
-<div class="modal-overlay" id="aiModal">
-  <div class="modal">
-    <div class="modal-logo"><span>AI</span></div>
-    <h2>AI Assistant Setup</h2>
-    <p>Enter your OpenAI API key to enable the AI assistant. It will automatically explain errors and suggest fixes to your request payloads.<br><br>Your key is stored locally in your browser only.</p>
-    <input type="password" id="aiKeyInput" placeholder="sk-..." />
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="dismissModal()">Skip for now</button>
-      <button class="btn-primary" onclick="saveAiKey()">Save & Continue</button>
-    </div>
-  </div>
-</div>
+
 
 <div class="layout">
   <!-- Sidebar -->
@@ -262,7 +250,7 @@
     <div class="ai-header">
       <div class="ai-dot"></div>
       <span>AI Assistant</span>
-      <small>Powered by GPT-4o</small>
+      <small>Powered by Claude</small>
     </div>
     <div class="ai-messages" id="aiMessages">
       <div class="ai-msg system">Select an endpoint and send a request. I'll automatically explain any errors and help fix your payload.</div>
@@ -279,7 +267,7 @@
 let currentEndpoint = null;
 let lastRequest = null;
 let lastResponse = null;
-let aiKey = localStorage.getItem('dfrnt_ai_key') || '';
+const AI_PROXY_URL = 'https://dfrnt-ai-proxy.george-653.workers.dev';
 let conversationHistory = [];
 
 // ─── Endpoints ───────────────────────────────────────────────────────────────
@@ -393,14 +381,7 @@ Key knowledge:
 
 When explaining errors: identify the exact field, show a corrected JSON snippet, explain why briefly. Be concise and developer-friendly.`;
 
-// ─── Modal ────────────────────────────────────────────────────────────────────
-function dismissModal() { document.getElementById('aiModal').style.display = 'none'; }
-function saveAiKey() {
-  const key = document.getElementById('aiKeyInput').value.trim();
-  if (key) { aiKey = key; localStorage.setItem('dfrnt_ai_key', key); }
-  dismissModal();
-}
-if (aiKey) dismissModal();
+
 
 // ─── Token ────────────────────────────────────────────────────────────────────
 function onTokenChange() {
@@ -497,16 +478,19 @@ async function sendAiMessage() {
 }
 
 async function callAI(userMessage, addToHistory) {
-  if (!aiKey) { addAiMessage('assistant', 'No AI key configured. Reload the page and enter your OpenAI API key to enable the assistant.'); return; }
   const thinkingEl = addThinking();
   if (addToHistory) conversationHistory.push({ role: 'user', content: userMessage });
-  const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...conversationHistory.slice(-10), ...(addToHistory ? [] : [{ role: 'user', content: userMessage }])];
+  const messages = [...conversationHistory.slice(-10), ...(addToHistory ? [] : [{ role: 'user', content: userMessage }])];
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Authorization': `Bearer ${aiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'gpt-4o', messages, temperature: 0.3, max_tokens: 1000 }) });
+    const res = await fetch(AI_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages })
+    });
     const data = await res.json();
     thinkingEl.remove();
-    if (data.error) { addAiMessage('assistant', `AI error: ${data.error.message}`); return; }
-    const reply = data.choices[0].message.content;
+    if (data.error) { addAiMessage('assistant', `AI error: ${data.error}`); return; }
+    const reply = data.content[0].text;
     conversationHistory.push({ role: 'assistant', content: reply });
     addAiMessage('assistant', reply);
   } catch(e) { thinkingEl.remove(); addAiMessage('assistant', `Could not reach AI: ${e.message}`); }
