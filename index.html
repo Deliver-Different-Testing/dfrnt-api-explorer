@@ -426,7 +426,8 @@ function selectEndpoint(id, event) {
       params.forEach((p, i) => { path = path.replace(`{${p}}`, parts[i] || vals); });
     }
   }
-  document.getElementById('urlInput').value = path;
+  const baseUrl = document.getElementById('baseUrlInput').value.trim().replace(/\/$/, '');
+  document.getElementById('urlInput').value = baseUrl + path;
   document.getElementById('requestBody').value = ep.body ? JSON.stringify(ep.body, null, 2) : '';
   document.getElementById('responseBody').value = '';
   document.getElementById('statusPill').textContent = '';
@@ -439,7 +440,10 @@ async function sendRequest() {
   const token = document.getElementById('tokenInput').value.trim();
   const baseUrl = document.getElementById('baseUrlInput').value.trim().replace(/\/$/, '');
   const method = document.getElementById('methodSelect').value;
-  const path = document.getElementById('urlInput').value.trim();
+  const rawUrl = document.getElementById('urlInput').value.trim();
+  // Support both full URLs and relative paths
+  const path = rawUrl.startsWith('http') ? rawUrl : baseUrl + rawUrl;
+  const fetchUrl = rawUrl.startsWith('http') ? rawUrl : baseUrl + rawUrl;
   const bodyText = document.getElementById('requestBody').value.trim();
   if (!token) { alert('Please enter your Bearer token first.'); return; }
   const btn = document.getElementById('sendBtn');
@@ -450,9 +454,9 @@ async function sendRequest() {
     try { JSON.parse(bodyText); options.body = bodyText; }
     catch(e) { alert('Invalid JSON: ' + e.message); btn.disabled = false; btn.textContent = 'Send →'; return; }
   }
-  lastRequest = { method, path, body: bodyText };
+  lastRequest = { method, url: fetchUrl, body: bodyText };
   try {
-    const res = await fetch(baseUrl + path, options);
+    const res = await fetch(fetchUrl, options);
     const text = await res.text();
     let pretty = text;
     try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch {}
